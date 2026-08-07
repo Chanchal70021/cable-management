@@ -1,7 +1,5 @@
 #pragma once
 
-#include "constants.hpp"
-
 #include <sdbusplus/asio/object_server.hpp>
 
 #include <memory>
@@ -34,6 +32,27 @@ class Manager
     explicit Manager(sdbusplus::asio::object_server& objectServer);
 
     ~Manager();
+
+    /**
+     * @brief Detect whether the CDFP0 cable is physically present and
+     *        correctly seated.
+     *
+     * @note This API is scoped to CDFP0 only, to serve the current split
+     *       mode use case. It is a stop-gap and will be deprecated once the
+     *       actual APIs to be exposed from Cable Manager are available.
+     *
+     * Evaluation order: NE_CABLE_PRES_N → FE_CABLE_PRES_N → PRES_LEFT_N
+     *
+     * @return false/true indicates cable presence
+     *
+     * @throw  sdbusplus::xyz::openbmc_project::Common::Device::Error::ReadFailure
+     *          in any of the following cases:
+     *          • gpiod error reading NE or FE or PRES_LEFT
+     *          • NE and FE values mismatch (one asserted, the other not)
+     *          • NE and FE both asserted but PRES_LEFT de-asserted
+     *            (cable wrongly connected / mis-seated)
+     */
+    bool detectCDFP0CablePresence();
 
   private:
     std::shared_ptr<sdbusplus::asio::dbus_interface> interface;

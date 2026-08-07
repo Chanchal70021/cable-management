@@ -17,6 +17,7 @@ cxx = meson.get_compiler('cpp')
 phosphor_logging_dep = dependency('phosphor-logging', required: true)
 sdbusplus_dep = dependency('sdbusplus', required: true)
 boost_dep = dependency('boost', required: true)
+libgpiod_dep = dependency('libgpiodcxx', required: true)
 
 cable_manager_sources = ['src/cable_manager_main.cpp', 'src/manager.cpp']
 
@@ -24,7 +25,7 @@ executable(
     'cable-manager',
     cable_manager_sources,
     include_directories: include_directories('include'),
-    dependencies: [phosphor_logging_dep, sdbusplus_dep, boost_dep],
+    dependencies: [phosphor_logging_dep, sdbusplus_dep, boost_dep, libgpiod_dep],
     install: true,
     install_dir: get_option('bindir'),
 )
