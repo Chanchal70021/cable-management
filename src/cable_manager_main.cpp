@@ -18,16 +18,16 @@ int main()
 
         auto bus = std::make_shared<sdbusplus::asio::connection>(io_con);
 
-        bus->request_name(constants::serviceName);
+        bus->request_name(cable_manager::constants::serviceName);
 
         sdbusplus::asio::object_server objectServer(bus);
-        objectServer.add_manager(constants::rootPath);
+        objectServer.add_manager(cable_manager::constants::rootPath);
 
         auto manager = std::make_shared<cable_manager::Manager>(objectServer);
 
         lg2::info("Cable Manager daemon initialised, D-Bus service "
                   "'{SERVICE}' registered",
-                  "SERVICE", constants::serviceName);
+                  "SERVICE", cable_manager::constants::serviceName);
 
         io_con.run();
 
