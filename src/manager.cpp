@@ -11,7 +11,8 @@ Manager::Manager(sdbusplus::asio::object_server& objectServer) :
     interface(objectServer.add_interface(constants::rootPath,
                                              constants::serviceName))
 {
-    // TODO: D-Bus method registrations will be added in future stories.
+    interface->register_method("DetectCDFPCablePresence",
+                               [this]() { return detectCDFPCablePresence(); });
 
     interface->initialize();
 
@@ -21,6 +22,13 @@ Manager::Manager(sdbusplus::asio::object_server& objectServer) :
 
 Manager::~Manager()
 {
+}
+
+bool Manager::detectCDFPCablePresence()
+{
+    // TODO: readGpioVal will be called from here with respective GPIO pins
+    //       once the GPIO constants are available (added in the next commit).
+    return false;
 }
 
 } // namespace cable_manager
