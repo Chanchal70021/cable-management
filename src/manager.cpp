@@ -1,17 +1,22 @@
 #include "manager.hpp"
 
 #include "constants.hpp"
+#include "utils.hpp"
 
 #include <phosphor-logging/lg2.hpp>
+#include <xyz/openbmc_project/Common/error.hpp>
 
 namespace cable_manager
 {
 
 Manager::Manager(sdbusplus::asio::object_server& objectServer) :
     interface(objectServer.add_interface(constants::rootPath,
-                                             constants::serviceName))
+                                         constants::serviceName))
 {
-    // TODO: D-Bus method registrations will be added in future stories.
+    interface->register_method(constants::getBMCPositionMethod,
+                               [this]() {
+                                   return static_cast<size_t>(getBMCPosition());
+                               });
 
     interface->initialize();
 
@@ -21,6 +26,21 @@ Manager::Manager(sdbusplus::asio::object_server& objectServer) :
 
 Manager::~Manager()
 {
+}
+
+types::BmcPosition Manager::getBMCPosition()
+{
+    auto val = utils::readDbusProperty(
+        constants::pimService, constants::systemVpdInvPath,
+        constants::positionInterface, constants::positionPropertyName);
+
+    if (const auto* pos = std::get_if<uint64_t>(&val))
+    {
+        return static_cast<types::BmcPosition>(*pos);
+    }
+
+    lg2::error("cable-manager: failed to get a valid BMC position value");
+    throw sdbusplus::xyz::openbmc_project::Common::Error::ResourceNotFound();
 }
 
 } // namespace cable_manager

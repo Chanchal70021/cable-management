@@ -1,6 +1,7 @@
 #pragma once
 
 #include "constants.hpp"
+#include "types.hpp"
 
 #include <sdbusplus/asio/object_server.hpp>
 
@@ -37,6 +38,19 @@ class Manager
 
   private:
     std::shared_ptr<sdbusplus::asio::dbus_interface> interface;
+
+    /**
+     * @brief Read the BMC position from the VPD inventory path and return it
+     *        to the D-Bus caller.
+     *
+     * @return types::BmcPosition::POSITION_0, types::BmcPosition::POSITION_1,
+     *         or types::BmcPosition::INVALID_VALUE if the position cannot be
+     *         determined.
+     *
+     * @throws sdbusplus::xyz::openbmc_project::Common::Error::ResourceNotFound
+     *         if the D-Bus call fails or the position property cannot be read.
+     */
+    types::BmcPosition getBMCPosition();
 };
 
 } // namespace cable_manager
