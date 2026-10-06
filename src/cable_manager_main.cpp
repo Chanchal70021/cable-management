@@ -1,4 +1,5 @@
 #include "constants.hpp"
+#include "handler.hpp"
 #include "manager.hpp"
 
 #include <phosphor-logging/lg2.hpp>
@@ -24,6 +25,8 @@ int main()
         objectServer.add_manager(cable::constants::rootPath);
 
         auto manager = std::make_shared<cable::Manager>(objectServer);
+
+        auto handler = std::make_shared<cable::Handler>();
 
         lg2::info("Cable Manager daemon initialised, D-Bus service "
                   "'{SERVICE}' registered",
