@@ -7,7 +7,7 @@
 
 #include <memory>
 
-namespace cable_manager
+namespace cable
 {
 
 /**
@@ -55,4 +55,4 @@ class Manager
     types::BmcPosition getBmcPosition();
 };
 
-} // namespace cable_manager
+} // namespace cable

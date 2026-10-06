@@ -11,7 +11,7 @@
 #include <string_view>
 #include <unordered_map>
 
-namespace cable_manager::utils
+namespace cable::utils
 {
 
 /**
@@ -49,7 +49,7 @@ inline std::string_view
  * @param[in] property   Property name to read.
  *
  * @return The property value as types::DbusVariantType on success, or a
- *         cable_manager::ErrorCode on failure:
+ *         cable::ErrorCode on failure:
  *           - ErrorCode::INVALID_INPUT      – one or more input strings are empty.
  *           - ErrorCode::STANDARD_EXCEPTION – the D-Bus call threw an exception.
  */
@@ -92,4 +92,4 @@ inline std::expected<types::DbusVariantType, ErrorCode>
     }
 }
 
-} // namespace cable_manager::utils
+} // namespace cable::utils

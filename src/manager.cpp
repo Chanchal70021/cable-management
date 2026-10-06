@@ -6,7 +6,7 @@
 #include <phosphor-logging/lg2.hpp>
 #include <xyz/openbmc_project/Common/error.hpp>
 
-namespace cable_manager
+namespace cable
 {
 
 Manager::Manager(sdbusplus::asio::object_server& objectServer) :
@@ -51,4 +51,4 @@ types::BmcPosition Manager::getBmcPosition()
     throw sdbusplus::xyz::openbmc_project::Common::Error::ResourceNotFound();
 }
 
-} // namespace cable_manager
+} // namespace cable
