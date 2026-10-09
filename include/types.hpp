@@ -6,7 +6,7 @@
 #include <string>
 #include <variant>
 
-namespace types {
+namespace cable::types {
 
 // Define a common Dbus variant type
 using DbusVariantType =
@@ -25,4 +25,4 @@ enum class BmcPosition : size_t {
   INVALID_VALUE = std::numeric_limits<size_t>::max()
 };
 
-} // namespace types
+} // namespace cable::types

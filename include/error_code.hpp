@@ -1,6 +1,6 @@
 #pragma once
 
-namespace cable_manager
+namespace cable
 {
 
 /**
@@ -15,4 +15,4 @@ enum class ErrorCode
     STANDARD_EXCEPTION = 1, ///< A std::exception was caught during the operation.
 };
 
-} // namespace cable_manager
+} // namespace cable

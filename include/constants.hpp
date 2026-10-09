@@ -1,6 +1,6 @@
 #pragma once
 
-namespace constants {
+namespace cable::constants {
 // Cable Manager service
 constexpr auto serviceName = "xyz.openbmc_project.Cable.Manager";
 constexpr auto pimService = "xyz.openbmc_project.Inventory.Manager";
@@ -10,4 +10,4 @@ constexpr auto systemVpdInvPath = "/xyz/openbmc_project/inventory/system";
 
 constexpr auto positionInterface =
     "xyz.openbmc_project.Inventory.Decorator.Position";
-} // namespace constants
+} // namespace cable::constants
