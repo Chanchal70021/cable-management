@@ -1,13 +1,16 @@
 #include "handler.hpp"
+#include "utils.hpp"
 
 namespace cable
 {
 
 types::BmcPosition Handler::readBmcPosition()
 {
-   // ToDo - Add the implementation of CDFP cable presence
-   // and return the Bmc position via GPIO pin
-   return types::BmcPosition::INVALID_VALUE;
+   // ToDo - Add the implementation of Bmc position via GPIO pin
+    bool l_cableCheckSucceeded = true;
+    [[maybe_unused]] const bool l_cablePresent =
+        utils::detectLeftCDFPCablePresence(l_cableCheckSucceeded);
+    return types::BmcPosition::INVALID_VALUE;
 }
 
 Handler::Handler()

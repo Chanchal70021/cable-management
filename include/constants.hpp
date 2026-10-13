@@ -10,4 +10,12 @@ constexpr auto systemVpdInvPath = "/xyz/openbmc_project/inventory/system";
 
 constexpr auto positionInterface =
     "xyz.openbmc_project.Inventory.Decorator.Position";
+
+// GPIO line names for CDFP0 cable presence detection
+constexpr auto gpioFarEndPresN  = "CDFP0_FE_CABLE_PRES_N";
+constexpr auto gpioNearEndPresN = "CDFP0_NE_CABLE_PRES_N";
+constexpr auto gpioPresLeftN    = "CDFP0_PRES_LEFT_N";
+
+// GPIO line name for BMC position (SLED ID)
+constexpr auto huygensSysBmcPosGpio = "SLED_ID";
 } // namespace cable::constants
