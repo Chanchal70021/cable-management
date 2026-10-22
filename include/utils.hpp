@@ -1,5 +1,6 @@
 #pragma once
 
+#include "constants.hpp"
 #include "error_code.hpp"
 #include "types.hpp"
 
@@ -90,6 +91,46 @@ inline std::expected<types::DbusVariantType, ErrorCode>
             e.what());
         return std::unexpected(ErrorCode::STANDARD_EXCEPTION);
     }
+}
+
+/**
+ * @brief Read a single GPIO line
+ *
+ * Reads the value of a specified GPIO line. The caller is responsible for
+ * interpreting the returned value based on their specific use case.
+ *
+ * @param[in] i_gpioName  Name of the GPIO line to read.
+ *
+ * @return GPIO value (int) on success, or cable::ErrorCode on failure.
+ */
+inline std::expected<int, ErrorCode> readGpioVal(
+    [[maybe_unused]] const std::string& i_gpioName) noexcept
+{
+    // ToDo - Add the implementation of reading GPIO line
+    return 0;
+}
+
+/**
+ * @brief Detect whether the left CDFP cable is present.
+ *
+ * @return true if present, false if absent, or errorCode on failure.
+ */
+inline std::expected<bool, ErrorCode> cdfpLeftCableDetected() noexcept
+{
+    // ToDo - Add the implementation of detecting left CDFP cable
+    return false;
+}
+
+/**
+ * @brief Detect whether the system is configured in split mode.
+ *
+ * @return true if split mode is detected, false if not, or errorCode on
+ *         failure.
+ */
+inline std::expected<bool, ErrorCode> isSplitModeDetected() noexcept
+{
+    // ToDo - Add the implementation of detecting split mode
+    return false;
 }
 
 } // namespace cable::utils
