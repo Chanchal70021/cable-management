@@ -4,6 +4,7 @@
 #include "error_code.hpp"
 #include "types.hpp"
 
+#include <gpiod.hpp>
 #include <phosphor-logging/lg2.hpp>
 #include <sdbusplus/bus.hpp>
 
@@ -23,13 +24,19 @@ namespace cable::utils
  * @return A string_view describing the error, or "unknown error" if the
  *         code is not present in the table.
  */
-inline std::string_view
-    getErrorCodeMsg(const ErrorCode& code) noexcept
+inline std::string_view getErrorCodeMsg(const ErrorCode& code) noexcept
 {
     static const std::unordered_map<ErrorCode, std::string_view>
         errorCodeMessages{
-            {ErrorCode::INVALID_INPUT,      "invalid input parameters"},
+            {ErrorCode::INVALID_INPUT, "invalid input parameter"},
             {ErrorCode::STANDARD_EXCEPTION, "standard exception caught"},
+            {ErrorCode::GPIO_LINE_NOT_FOUND, "GPIO line not found"},
+            {ErrorCode::GPIO_READ_MISMATCH,
+             "near-end and far-end cable presence GPIO pin value mismatch"},
+            {ErrorCode::CABLE_WRONGLY_CONNECTED, "cable wrongly connected"},
+            {ErrorCode::FAR_END_FAILED , "downlink detection failed"},
+            {ErrorCode::NEAR_END_FAILED , "uplink detection failed"},
+            {ErrorCode::CABLE_STATUS_UNKNOWN , "failed to detect cable status"},
         };
 
     if (const auto it = errorCodeMessages.find(code);
@@ -51,13 +58,14 @@ inline std::string_view
  *
  * @return The property value as types::DbusVariantType on success, or a
  *         cable::ErrorCode on failure:
- *           - ErrorCode::INVALID_INPUT      – one or more input strings are empty.
- *           - ErrorCode::STANDARD_EXCEPTION – the D-Bus call threw an exception.
+ *           - ErrorCode::INVALID_INPUT      – one or more input strings are
+ * empty.
+ *           - ErrorCode::STANDARD_EXCEPTION – the D-Bus call threw an
+ * exception.
  */
-inline std::expected<types::DbusVariantType, ErrorCode>
-    readDbusProperty(const std::string& service, const std::string& path,
-                     const std::string& interface,
-                     const std::string& property) noexcept
+inline std::expected<types::DbusVariantType, ErrorCode> readDbusProperty(
+    const std::string& service, const std::string& path,
+    const std::string& interface, const std::string& property) noexcept
 {
     if (service.empty() || path.empty() || interface.empty() ||
         property.empty())
@@ -94,31 +102,48 @@ inline std::expected<types::DbusVariantType, ErrorCode>
 }
 
 /**
- * @brief Read a single GPIO line
+ * @brief Read a single GPIO line.
  *
  * Reads the value of a specified GPIO line. The caller is responsible for
  * interpreting the returned value based on their specific use case.
  *
- * @param[in] i_gpioName  Name of the GPIO line to read.
+ * @param[in] gpioName  Name of the GPIO line to read.
  *
- * @return GPIO value (int) on success, or cable::ErrorCode on failure.
+ * @return GPIO value (0/1) on success, or ErrorCode on failure
+ *
  */
 inline std::expected<int, ErrorCode> readGpioVal(
-    [[maybe_unused]] const std::string& i_gpioName) noexcept
+    const std::string& gpioName) noexcept
 {
-    // ToDo - Add the implementation of reading GPIO line
-    return 0;
-}
+    if (gpioName.empty())
+    {
+        return std::unexpected(ErrorCode::INVALID_INPUT);
+    }
 
-/**
- * @brief Detect whether the left CDFP cable is present.
- *
- * @return true if present, false if absent, or errorCode on failure.
- */
-inline std::expected<bool, ErrorCode> cdfpLeftCableDetected() noexcept
-{
-    // ToDo - Add the implementation of detecting left CDFP cable
-    return false;
+    try
+    {
+        auto line = gpiod::find_line(gpioName);
+
+        if (!line)
+        {
+            return std::unexpected(ErrorCode::GPIO_LINE_NOT_FOUND);
+        }
+
+        line.request(
+            {"cable-manager", gpiod::line_request::DIRECTION_INPUT, 0});
+
+        const int value = line.get_value();
+
+        // Explicitly releasing the line resource
+        line.release();
+        return value;
+    }
+    catch (const std::exception& ex)
+    {
+        lg2::error("Failed to read GPIO line '{GPIO}': {ERR}", "GPIO", gpioName,
+                   "ERR", ex.what());
+        return std::unexpected(ErrorCode::STANDARD_EXCEPTION);
+    }
 }
 
 /**
@@ -132,5 +157,4 @@ inline std::expected<bool, ErrorCode> isSplitModeDetected() noexcept
     // ToDo - Add the implementation of detecting split mode
     return false;
 }
-
 } // namespace cable::utils

@@ -1,6 +1,11 @@
 #include "handler.hpp"
 
+#include "cdfp_handler.hpp"
 #include "utils.hpp"
+
+#include <phosphor-logging/lg2.hpp>
+
+#include <format>
 
 namespace cable
 {
@@ -14,15 +19,14 @@ Handler::Handler()
 void Handler::readAndPublishBmcPosition()
 {
     std::string errMsg = "";
-    auto leftCDFPPresentRes = utils::cdfpLeftCableDetected();
+    auto leftCDFPPresentRes = CdfpHandler::leftCableDetected();
     if (!leftCDFPPresentRes.has_value())
     {
-        errMsg = std::format("Failed to detect left CDFP cable with error : {}",
-            utils::getErrorCodeMsg(leftCDFPPresentRes.error()));
+        errMsg =
+            std::format("Failed to detect left CDFP cable with error : {}",
+                        utils::getErrorCodeMsg(leftCDFPPresentRes.error()));
         // System might be in splitmode hence proceeding further .
     }
-
-    // ToDo: based on configuration read right CDFP cable
 
     auto splitModeRes = utils::isSplitModeDetected();
     if (!splitModeRes.has_value())
@@ -34,7 +38,7 @@ void Handler::readAndPublishBmcPosition()
     if (splitModeRes.value_or(false))
     {
         // In split mode no CDFP cable should be connected.
-        if (leftCDFPPresentRes.value())
+        if (leftCDFPPresentRes.value_or(false))
         {
             // ToDo - publish Bmc position as max_int since its an error case
             // and return.
@@ -47,7 +51,7 @@ void Handler::readAndPublishBmcPosition()
 
     // Not in splitmode (or split mode unknown) and no left cdfp cable
     // connected
-    if (!leftCDFPPresentRes.value())
+    if (!leftCDFPPresentRes.value_or(false))
     {
         // ToDo - publish Bmc position as max_int , left Cdfp cable is absent
         // and system is not in splitmode (or split mode detection failed).
@@ -59,8 +63,10 @@ void Handler::readAndPublishBmcPosition()
     auto gpioValRes = utils::readGpioVal(constants::huygensSysBmcPosGpio);
     if (!gpioValRes.has_value())
     {
-        // ToDo - Log error and publish Bmc position as max_int since its an
-        // error case
+        lg2::error("Failed to read GPIO '{GPIO}': {ERR}", "GPIO",
+                   constants::huygensSysBmcPosGpio, "ERR",
+                   utils::getErrorCodeMsg(gpioValRes.error()));
+        // ToDo - publish Bmc position as max_int since its an error case
         return;
     }
     // ToDo - get bmc position and publish it under PIM .
