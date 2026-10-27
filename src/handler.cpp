@@ -23,7 +23,7 @@ void Handler::readAndPublishBmcPosition()
     if (!leftCDFPPresentRes.has_value())
     {
         errMsg =
-            std::format("Failed to detect left CDFP cable with error : {}",
+            std::format("Failed to detect left CDFP cable with error : {}.",
                         utils::getErrorCodeMsg(leftCDFPPresentRes.error()));
         // System might be in splitmode hence proceeding further .
     }
@@ -31,21 +31,24 @@ void Handler::readAndPublishBmcPosition()
     auto splitModeRes = utils::isSplitModeDetected();
     if (!splitModeRes.has_value())
     {
-        // ToDo - Log error. Don't return: if the left CDFP cable is present
-        // the position can still be read from GPIO below.
+        errMsg += std::format(" Failed to detect split mode with error : {}.",
+                              utils::getErrorCodeMsg(splitModeRes.error()));
     }
 
     if (splitModeRes.value_or(false))
     {
-        // In split mode no CDFP cable should be connected.
+        // In split mode no CDFP cable should be connected , publish bmc
+        // position as max_int.
         if (leftCDFPPresentRes.value_or(false))
         {
-            // ToDo - publish Bmc position as max_int since its an error case
-            // and return.
+            lg2::error(
+                "System is in split mode but left CDFP cable is connected");
             return;
         }
 
         // ToDo - splitmode case , publish Bmc position as 0
+        errMsg += " System is in split mode.";
+        lg2::info("{MSG}", "MSG", errMsg);
         return;
     }
 
@@ -53,13 +56,14 @@ void Handler::readAndPublishBmcPosition()
     // connected
     if (!leftCDFPPresentRes.value_or(false))
     {
-        // ToDo - publish Bmc position as max_int , left Cdfp cable is absent
-        // and system is not in splitmode (or split mode detection failed).
+        errMsg += " Unable to determine BMC position.";
+        lg2::error("{ERR}", "ERR", errMsg);
+        // ToDo - publish Bmc position as max_int since its an error case
+        // and return.
         return;
     }
 
-    // Left Cdfp cable present (with or without right): position comes from
-    // GPIO.
+    // Left Cdfp cable present : position comes from GPIO.
     auto gpioValRes = utils::readGpioVal(constants::huygensSysBmcPosGpio);
     if (!gpioValRes.has_value())
     {

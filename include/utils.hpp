@@ -4,14 +4,22 @@
 #include "error_code.hpp"
 #include "types.hpp"
 
+#include <sys/wait.h>
+
 #include <gpiod.hpp>
 #include <phosphor-logging/lg2.hpp>
 #include <sdbusplus/bus.hpp>
 
+#include <algorithm>
+#include <cctype>
+#include <cstdio>
 #include <expected>
+#include <format>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <vector>
 
 namespace cable::utils
 {
@@ -34,10 +42,12 @@ inline std::string_view getErrorCodeMsg(const ErrorCode& code) noexcept
             {ErrorCode::GPIO_READ_MISMATCH,
              "near-end and far-end cable presence GPIO pin value mismatch"},
             {ErrorCode::CABLE_WRONGLY_CONNECTED, "cable wrongly connected"},
-            {ErrorCode::FAR_END_FAILED , "downlink detection failed"},
-            {ErrorCode::NEAR_END_FAILED , "uplink detection failed"},
-            {ErrorCode::CABLE_STATUS_UNKNOWN , "failed to detect cable status"},
-        };
+            {ErrorCode::FAR_END_FAILED, "downlink detection failed"},
+            {ErrorCode::NEAR_END_FAILED, "uplink detection failed"},
+            {ErrorCode::CABLE_STATUS_UNKNOWN, "failed to detect cable status"},
+            {ErrorCode::SYS_CMD_FAILED, "system command failed"},
+            {ErrorCode::FIELD_MODE_READ_FAILED,
+             "failed to read or parse u-boot variable fieldmode"}};
 
     if (const auto it = errorCodeMessages.find(code);
         it != errorCodeMessages.end())
@@ -147,14 +157,129 @@ inline std::expected<int, ErrorCode> readGpioVal(
 }
 
 /**
+ * @brief Convert a string to lower case in place.
+ *
+ * @param[in,out] string - String to convert.
+ */
+inline void toLower(std::string& string) noexcept
+{
+    std::transform(string.begin(), string.end(), string.begin(),
+                   [](unsigned char ch) { return std::tolower(ch); });
+}
+
+/**
+ * @brief Execute a shell command and capture output
+ *
+ * Executes a shell command using popen and captures the output lines.
+ * The exit status of the command is checked via pclose; a non-zero exit
+ * status is treated as a failure even if output was produced. Errors are
+ * not logged here; the caller is responsible for logging.
+ *
+ * @param[in] command - Command to execute
+ *
+ * @return std::expected<std::vector<std::string>, ErrorCode> - On
+ * success, contains the captured output lines. On failure, contains
+ * ErrorCode::SYS_CMD_FAILED if popen fails or the command exits
+ * non-zero, or ErrorCode::STANDARD_EXCEPTION on an unexpected exception.
+ */
+inline std::expected<std::vector<std::string>, ErrorCode> executeCmd(
+    const std::string& command) noexcept
+{
+    try
+    {
+        using pCloseFunc = int (*)(FILE*);
+        std::unique_ptr<FILE, pCloseFunc> pipe(popen(command.c_str(), "r"),
+                                               pclose);
+
+        if (!pipe)
+        {
+            lg2::error("Failed to execute command: {C}", "C", command);
+            return std::unexpected(ErrorCode::SYS_CMD_FAILED);
+        }
+
+        std::vector<std::string> output;
+        char buffer[256];
+        while (fgets(buffer, sizeof(buffer), pipe.get()) != nullptr)
+        {
+            output.push_back(std::string(buffer));
+        }
+
+        // Release ownership so we can call pclose manually and inspect the
+        // command's exit status — the destructor would discard it silently.
+        int status = pclose(pipe.release());
+        if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
+        {
+            lg2::error("Command [{C}] exited with non-zero status: {S}", "C",
+                       command, "S", WEXITSTATUS(status));
+            return std::unexpected(ErrorCode::SYS_CMD_FAILED);
+        }
+
+        return output;
+    }
+    catch (const std::exception& ex)
+    {
+        lg2::error("Failed to execute system command '{CMD}': {ERR}", "CMD",
+                   command, "ERR", ex.what());
+        return std::unexpected(ErrorCode::STANDARD_EXCEPTION);
+    }
+}
+
+/**
+ * @brief API to check if field mode is enabled
+ *
+ * Checks the U-boot fieldmode variable to determine if field mode is enabled.
+ *
+ * @return std::expected<bool, ErrorCode> - On success, contains
+ * true if field mode is enabled, false otherwise. On failure, contains
+ * ErrorCode::FIELD_MODE_READ_FAILED.
+ */
+inline std::expected<bool, ErrorCode> isFieldModeEnabled() noexcept
+{
+    auto cmdOutput = executeCmd("/sbin/fw_printenv fieldmode");
+
+    if (!cmdOutput)
+    {
+        return std::unexpected(ErrorCode::FIELD_MODE_READ_FAILED);
+    }
+
+    if (!cmdOutput->empty())
+    {
+        toLower(cmdOutput->front());
+
+        // Remove the new line character from the string
+        if (cmdOutput->front().ends_with('\n'))
+        {
+            cmdOutput->front().pop_back();
+        }
+
+        return cmdOutput->front() == "fieldmode=true";
+    }
+
+    return false;
+}
+
+/**
  * @brief Detect whether the system is configured in split mode.
  *
- * @return true if split mode is detected, false if not, or errorCode on
- *         failure.
+ * @return true if split mode is detected, false if not, or
+ *         ErrorCode on failure.
  */
 inline std::expected<bool, ErrorCode> isSplitModeDetected() noexcept
 {
-    // ToDo - Add the implementation of detecting split mode
+    auto fieldModeRes = isFieldModeEnabled();
+    if (!fieldModeRes)
+    {
+        return std::unexpected(fieldModeRes.error());
+    }
+
+    if (fieldModeRes.value())
+    {
+        // Field mode set: not split mode, VPD mode is not needed.
+        return false;
+    }
+
+    // TODO: implement VPD mode check to determine split mode.
+    // For now return false until vpdmode implementation is done.
     return false;
 }
 } // namespace cable::utils
