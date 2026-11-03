@@ -12,7 +12,9 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cerrno>
 #include <cstdio>
+#include <cstring>
 #include <expected>
 #include <format>
 #include <memory>
@@ -47,7 +49,10 @@ inline std::string_view getErrorCodeMsg(const ErrorCode& code) noexcept
             {ErrorCode::CABLE_STATUS_UNKNOWN, "failed to detect cable status"},
             {ErrorCode::SYS_CMD_FAILED, "system command failed"},
             {ErrorCode::FIELD_MODE_READ_FAILED,
-             "failed to read or parse u-boot variable fieldmode"}};
+             "failed to read or parse fieldmode u-boot variable"},
+            {ErrorCode::VPD_MODE_READ_FAILED,
+             "failed to read or parse vpdmode u-boot variable"},
+            {ErrorCode::UBOOT_VARIABLE_NOT_FOUND, "u-boot variable not found"}};
 
     if (const auto it = errorCodeMessages.find(code);
         it != errorCodeMessages.end())
@@ -172,15 +177,16 @@ inline void toLower(std::string& string) noexcept
  *
  * Executes a shell command using popen and captures the output lines.
  * The exit status of the command is checked via pclose; a non-zero exit
- * status is treated as a failure even if output was produced. Errors are
- * not logged here; the caller is responsible for logging.
+ * status is treated as a failure even if output was produced.
  *
  * @param[in] command - Command to execute
  *
  * @return std::expected<std::vector<std::string>, ErrorCode> - On
  * success, contains the captured output lines. On failure, contains
- * ErrorCode::SYS_CMD_FAILED if popen fails or the command exits
- * non-zero, or ErrorCode::STANDARD_EXCEPTION on an unexpected exception.
+ * ErrorCode::UBOOT_VARIABLE_NOT_FOUND if a fw_printenv command exits with
+ * status 1, ErrorCode::SYS_CMD_FAILED if popen fails or the command exits
+ * with any other non-zero status, or ErrorCode::STANDARD_EXCEPTION on an
+ * unexpected exception.
  */
 inline std::expected<std::vector<std::string>, ErrorCode> executeCmd(
     const std::string& command) noexcept
@@ -193,7 +199,9 @@ inline std::expected<std::vector<std::string>, ErrorCode> executeCmd(
 
         if (!pipe)
         {
-            lg2::error("Failed to execute command: {C}", "C", command);
+            int err = errno;
+            lg2::error("popen failed for command [{C}], errno: {E} ({MSG})",
+                       "C", command, "E", err, "MSG", strerror(err));
             return std::unexpected(ErrorCode::SYS_CMD_FAILED);
         }
 
@@ -207,13 +215,38 @@ inline std::expected<std::vector<std::string>, ErrorCode> executeCmd(
         // Release ownership so we can call pclose manually and inspect the
         // command's exit status — the destructor would discard it silently.
         int status = pclose(pipe.release());
-        if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
+        int err = errno;
+
+        if (status == -1)
         {
+            lg2::error("pclose failed for command [{C}], errno: {E} ({MSG})",
+                       "C", command, "E", err, "MSG", strerror(err));
+            return std::unexpected(ErrorCode::SYS_CMD_FAILED);
+        }
+
+        if (!WIFEXITED(status))
+        {
+            lg2::error("Command [{C}] did not exit normally, wait status: {S}",
+                       "C", command, "S", status);
+            return std::unexpected(ErrorCode::SYS_CMD_FAILED);
+        }
+
+        if (WEXITSTATUS(status) != 0)
+        {
+            // ONLY treat exit status 1 as "Variable Not Found" if the command
+            // is actually fw_printenv
+            if (WEXITSTATUS(status) == 1 &&
+                command.find("fw_printenv") != std::string::npos)
+            {
+                // Not logged here: fw_printenv already reports the undefined
+                // variable on its own, so logging again would be redundant.
+                return std::unexpected(ErrorCode::UBOOT_VARIABLE_NOT_FOUND);
+            }
+
             lg2::error("Command [{C}] exited with non-zero status: {S}", "C",
                        command, "S", WEXITSTATUS(status));
             return std::unexpected(ErrorCode::SYS_CMD_FAILED);
         }
-
         return output;
     }
     catch (const std::exception& ex)
@@ -259,6 +292,53 @@ inline std::expected<bool, ErrorCode> isFieldModeEnabled() noexcept
 }
 
 /**
+ * @brief API to get the VPD collection mode.
+ *
+ * VPD collection mode can be hardware, mixed mode or file mode. This is
+ * determined by reading a u-boot variable.
+ *
+ * @return std::expected<types::VpdCollectionMode, ErrorCode> - On success,
+ * contains the VPD collection mode. On failure, contains
+ * ErrorCode::VPD_MODE_READ_FAILED .
+ */
+inline std::expected<types::VpdCollectionMode, ErrorCode>
+    getVpdCollectionMode() noexcept
+{
+    auto cmdOutput = executeCmd("/sbin/fw_printenv vpdmode");
+
+    if (!cmdOutput)
+    {
+        return std::unexpected(ErrorCode::VPD_MODE_READ_FAILED);
+    }
+
+    if (!cmdOutput->empty())
+    {
+        toLower(cmdOutput->front());
+
+        // Remove the new line character from the string
+        if (cmdOutput->front().ends_with('\n'))
+        {
+            cmdOutput->front().pop_back();
+        }
+
+        if (cmdOutput->front() == "vpdmode=hardware")
+        {
+            return types::VpdCollectionMode::HARDWARE_MODE;
+        }
+        else if (cmdOutput->front() == "vpdmode=mixed")
+        {
+            return types::VpdCollectionMode::MIXED_MODE;
+        }
+        else if (cmdOutput->front() == "vpdmode=file")
+        {
+            return types::VpdCollectionMode::FILE_MODE;
+        }
+    }
+
+    return types::VpdCollectionMode::DEFAULT_MODE;
+}
+
+/**
  * @brief Detect whether the system is configured in split mode.
  *
  * @return true if split mode is detected, false if not, or
@@ -278,8 +358,12 @@ inline std::expected<bool, ErrorCode> isSplitModeDetected() noexcept
         return false;
     }
 
-    // TODO: implement VPD mode check to determine split mode.
-    // For now return false until vpdmode implementation is done.
-    return false;
+    auto vpdModeRes = getVpdCollectionMode();
+    if (!vpdModeRes)
+    {
+        return std::unexpected(vpdModeRes.error());
+    }
+
+    return vpdModeRes.value() == types::VpdCollectionMode::FILE_MODE;
 }
 } // namespace cable::utils
