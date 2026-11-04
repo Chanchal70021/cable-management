@@ -20,6 +20,8 @@ enum class ErrorCode
     FAR_END_FAILED ,
     NEAR_END_FAILED,
     CABLE_STATUS_UNKNOWN,
+    SYS_CMD_FAILED,         ///< A system command failed to execute or exited non-zero.
+    FIELD_MODE_READ_FAILED, ///< Failed to read the u-boot fieldmode variable.
 };
 
 } // namespace cable

@@ -26,7 +26,7 @@ std::expected<bool, ErrorCode> CdfpHandler::leftCableDetected() noexcept
         lg2::error("Failed to read GPIO '{GPIO}': {ERR}", "GPIO",
                    constants::cdfp0GpioFarEndPresN, "ERR",
                    utils::getErrorCodeMsg(farEndRes.error()));
-            return std::unexpected(ErrorCode::FAR_END_FAILED);
+        return std::unexpected(ErrorCode::FAR_END_FAILED);
     }
 
     // Active-low: raw 0 → pin asserted → cable end present.
