@@ -22,6 +22,8 @@ enum class ErrorCode
     CABLE_STATUS_UNKNOWN,
     SYS_CMD_FAILED,         ///< A system command failed to execute or exited non-zero.
     FIELD_MODE_READ_FAILED, ///< Failed to read the u-boot fieldmode variable.
+    VPD_MODE_READ_FAILED,   ///< Failed to read or parse the u-boot vpdmode variable.
+    UBOOT_VARIABLE_NOT_FOUND, ///< The requested u-boot variable is not found.
 };
 
 } // namespace cable

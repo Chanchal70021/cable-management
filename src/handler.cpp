@@ -35,44 +35,45 @@ void Handler::readAndPublishBmcPosition()
                               utils::getErrorCodeMsg(splitModeRes.error()));
     }
 
-    if (splitModeRes.value_or(false))
-    {
-        // In split mode no CDFP cable should be connected , publish bmc
-        // position as max_int.
-        if (leftCDFPPresentRes.value_or(false))
+    const types::BmcPosition position = [&]() -> types::BmcPosition {
+        if (splitModeRes.value_or(false))
         {
-            lg2::error(
-                "System is in split mode but left CDFP cable is connected");
-            return;
+            // In split mode no CDFP cable should be connected.
+            if (leftCDFPPresentRes.value_or(false))
+            {
+                lg2::error(
+                    "System is in split mode but left CDFP cable is connected");
+                return types::BmcPosition::INVALID_VALUE;
+            }
+
+            errMsg += " System is in split mode.";
+            lg2::info("{MSG}", "MSG", errMsg);
+            return types::BmcPosition::POSITION_0;
         }
 
-        // ToDo - splitmode case , publish Bmc position as 0
-        errMsg += " System is in split mode.";
-        lg2::info("{MSG}", "MSG", errMsg);
-        return;
-    }
+        // Not in splitmode (or split mode unknown) and no left cdfp cable
+        // connected
+        if (!leftCDFPPresentRes.value_or(false))
+        {
+            errMsg += " Unable to determine BMC position.";
+            lg2::error("{ERR}", "ERR", errMsg);
+            return types::BmcPosition::INVALID_VALUE;
+        }
 
-    // Not in splitmode (or split mode unknown) and no left cdfp cable
-    // connected
-    if (!leftCDFPPresentRes.value_or(false))
-    {
-        errMsg += " Unable to determine BMC position.";
-        lg2::error("{ERR}", "ERR", errMsg);
-        // ToDo - publish Bmc position as max_int since its an error case
-        // and return.
-        return;
-    }
+        // Left Cdfp cable present : position comes from GPIO.
+        auto gpioValRes = utils::readGpioVal(constants::huygensSysBmcPosGpio);
+        if (!gpioValRes.has_value())
+        {
+            lg2::error("Failed to read GPIO '{GPIO}': {ERR}", "GPIO",
+                       constants::huygensSysBmcPosGpio, "ERR",
+                       utils::getErrorCodeMsg(gpioValRes.error()));
+            return types::BmcPosition::INVALID_VALUE;
+        }
+        return static_cast<types::BmcPosition>(gpioValRes.value());
+    }();
 
-    // Left Cdfp cable present : position comes from GPIO.
-    auto gpioValRes = utils::readGpioVal(constants::huygensSysBmcPosGpio);
-    if (!gpioValRes.has_value())
-    {
-        lg2::error("Failed to read GPIO '{GPIO}': {ERR}", "GPIO",
-                   constants::huygensSysBmcPosGpio, "ERR",
-                   utils::getErrorCodeMsg(gpioValRes.error()));
-        // ToDo - publish Bmc position as max_int since its an error case
-        return;
-    }
-    // ToDo - get bmc position and publish it under PIM .
+    lg2::info("Evaluated Bmc position: {POS}", "POS",
+              static_cast<size_t>(position));
+    // ToDo - publish the position under PIM.
 }
 } // namespace cable
