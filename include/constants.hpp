@@ -17,6 +17,11 @@ constexpr auto cdfp0GpioFarEndPresN = "CDFP0_FE_CABLE_PRES_N";
 constexpr auto cdfp0GpioNearEndPresN = "CDFP0_NE_CABLE_PRES_N";
 constexpr auto cdfp0GpioPresLeftN = "CDFP0_PRES_LEFT_N";
 
+// GPIO line names for CDFP1 cable presence detection
+constexpr auto cdfp1GpioFarEndPresN = "CDFP1_FE_CABLE_PRES_N";
+constexpr auto cdfp1GpioNearEndPresN = "CDFP1_NE_CABLE_PRES_N";
+constexpr auto cdfp1GpioPresRightP = "CDFP1_PRES_RIGHT_P";
+
 // GPIO line name for BMC position (SLED ID)
 constexpr auto huygensSysBmcPosGpio = "SLED_ID";
 } // namespace cable::constants

@@ -25,6 +25,13 @@ class CdfpHandler
      * @return true if present, false if absent, or errorCode on failure.
      */
     static std::expected<bool, ErrorCode> leftCableDetected() noexcept;
+
+    /**
+     * @brief Detect whether CDFP cable 1 is present.
+     *
+     * @return true if present, false if absent, or errorCode on failure.
+     */
+    static std::expected<bool, ErrorCode> cdfp1CableDetected() noexcept;
 };
 
 } // namespace cable
