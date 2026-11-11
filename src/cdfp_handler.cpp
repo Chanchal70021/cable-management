@@ -8,7 +8,7 @@
 namespace cable
 {
 
-std::expected<bool, ErrorCode> CdfpHandler::leftCableDetected() noexcept
+std::expected<bool, ErrorCode> CdfpHandler::cdfp0CableDetected() noexcept
 {
     const auto nearEndRes =
         utils::readGpioVal(constants::cdfp0GpioNearEndPresN);

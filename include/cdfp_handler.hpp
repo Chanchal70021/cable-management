@@ -20,11 +20,11 @@ class CdfpHandler
     CdfpHandler& operator=(CdfpHandler&&) = delete;
 
     /**
-     * @brief Detect whether the left CDFP cable is present.
+     * @brief Detect whether CDFP cable 0 is present.
      *
      * @return true if present, false if absent, or errorCode on failure.
      */
-    static std::expected<bool, ErrorCode> leftCableDetected() noexcept;
+    static std::expected<bool, ErrorCode> cdfp0CableDetected() noexcept;
 
     /**
      * @brief Detect whether CDFP cable 1 is present.
