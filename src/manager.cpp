@@ -6,16 +6,25 @@
 #include <phosphor-logging/lg2.hpp>
 #include <xyz/openbmc_project/Common/error.hpp>
 
+#include <string>
+#include <vector>
+
 namespace cable
 {
 
 Manager::Manager(sdbusplus::asio::object_server& objectServer) :
-    interface(objectServer.add_interface(constants::rootPath,
-                                         constants::serviceName))
+    interface(
+        objectServer.add_interface(constants::rootPath, constants::serviceName))
 {
-    interface->register_method("GetBmcPosition",
-                               [this]() {
-                                   return static_cast<size_t>(getBmcPosition());
+    interface->register_method("GetBmcPosition", [this]() {
+        return static_cast<size_t>(getBmcPosition());
+    });
+
+    interface->register_method("ValidateCdfpCables",
+                               [](const std::string& /*scope*/) {
+                                   // TODO: This is where the cdfp1CableDetected
+                                   // API will be consumed.
+                                   return std::vector<std::string>{};
                                });
 
     interface->initialize();
@@ -24,9 +33,7 @@ Manager::Manager(sdbusplus::asio::object_server& objectServer) :
               "PATH", constants::rootPath, "IFACE", constants::serviceName);
 }
 
-Manager::~Manager()
-{
-}
+Manager::~Manager() {}
 
 types::BmcPosition Manager::getBmcPosition()
 {
@@ -36,10 +43,10 @@ types::BmcPosition Manager::getBmcPosition()
 
     if (!result)
     {
-        lg2::error(
-            "failed to read BMC position property: {ERR}",
-            "ERR", utils::getErrorCodeMsg(result.error()));
-        throw sdbusplus::xyz::openbmc_project::Common::Error::ResourceNotFound();
+        lg2::error("failed to read BMC position property: {ERR}", "ERR",
+                   utils::getErrorCodeMsg(result.error()));
+        throw sdbusplus::xyz::openbmc_project::Common::Error::
+            ResourceNotFound();
     }
 
     if (const auto* pos = std::get_if<uint64_t>(&result.value()))
