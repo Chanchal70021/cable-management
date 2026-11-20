@@ -19,12 +19,11 @@ Handler::Handler()
 void Handler::readAndPublishBmcPosition()
 {
     std::string errMsg = "";
-    auto leftCDFPPresentRes = CdfpHandler::leftCableDetected();
-    if (!leftCDFPPresentRes.has_value())
+    auto cdfp0PresentRes = CdfpHandler::cdfp0CableDetected();
+    if (!cdfp0PresentRes.has_value())
     {
-        errMsg =
-            std::format("Failed to detect left CDFP cable with error : {}.",
-                        utils::getErrorCodeMsg(leftCDFPPresentRes.error()));
+        errMsg = std::format("Failed to detect CDFP cable 0 with error : {}.",
+                             utils::getErrorCodeMsg(cdfp0PresentRes.error()));
         // System might be in splitmode hence proceeding further .
     }
 
@@ -39,10 +38,10 @@ void Handler::readAndPublishBmcPosition()
         if (splitModeRes.value_or(false))
         {
             // In split mode no CDFP cable should be connected.
-            if (leftCDFPPresentRes.value_or(false))
+            if (cdfp0PresentRes.value_or(false))
             {
                 lg2::error(
-                    "System is in split mode but left CDFP cable is connected");
+                    "System is in split mode but CDFP cable 0 is connected");
                 return types::BmcPosition::INVALID_VALUE;
             }
 
@@ -51,16 +50,16 @@ void Handler::readAndPublishBmcPosition()
             return types::BmcPosition::POSITION_0;
         }
 
-        // Not in splitmode (or split mode unknown) and no left cdfp cable
+        // Not in splitmode (or split mode unknown) and no CDFP cable 0
         // connected
-        if (!leftCDFPPresentRes.value_or(false))
+        if (!cdfp0PresentRes.value_or(false))
         {
             errMsg += " Unable to determine BMC position.";
             lg2::error("{ERR}", "ERR", errMsg);
             return types::BmcPosition::INVALID_VALUE;
         }
 
-        // Left Cdfp cable present : position comes from GPIO.
+        // CDFP cable 0 present : position comes from GPIO.
         auto gpioValRes = utils::readGpioVal(constants::huygensSysBmcPosGpio);
         if (!gpioValRes.has_value())
         {
