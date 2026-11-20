@@ -1,5 +1,6 @@
 #pragma once
 
+#include "config_manager.hpp"
 #include "constants.hpp"
 #include "types.hpp"
 
@@ -40,6 +41,24 @@ class Manager
     std::shared_ptr<sdbusplus::asio::dbus_interface> interface;
 
     /**
+     * @brief Config manager instance.
+     *
+     * Null if initConfigMgr() failed to create it.
+     */
+    std::shared_ptr<ConfigMgr> configMgr;
+
+    /**
+     * @brief Create the ConfigMgr, which parses the cable configuration JSON.
+     *
+     * Catches any exception thrown by the ConfigMgr constructor so that a bad
+     * or missing config does not abort the daemon. On failure configMgr is
+     * left null.
+     *
+     * @note ToDo: Log a PEL on failure.
+     */
+    void initConfigMgr();
+
+    /**
      * @brief Read the BMC position from the inventory path and return it
      *        to the D-Bus caller.
      *
@@ -50,7 +69,8 @@ class Manager
      * @throws sdbusplus::xyz::openbmc_project::Common::Error::ResourceNotFound
      *         if the D-Bus call fails or the position property cannot be read.
      *
-     * @note   ToDo: The API may be extended to re-detect the BMC position if required.
+     * @note   ToDo: The API may be extended to re-detect the BMC position if
+     * required.
      */
     types::BmcPosition getBmcPosition();
 };

@@ -1,3 +1,5 @@
+#include "config.h"
+
 #include "manager.hpp"
 
 #include "constants.hpp"
@@ -16,6 +18,8 @@ Manager::Manager(sdbusplus::asio::object_server& objectServer) :
     interface(
         objectServer.add_interface(constants::rootPath, constants::serviceName))
 {
+    initConfigMgr();
+
     interface->register_method("GetBmcPosition", [this]() {
         return static_cast<size_t>(getBmcPosition());
     });
@@ -23,7 +27,9 @@ Manager::Manager(sdbusplus::asio::object_server& objectServer) :
     interface->register_method("ValidateCdfpCables",
                                [](const std::string& /*scope*/) {
                                    // TODO: This is where the cdfp1CableDetected
-                                   // API will be consumed.
+                                   // API will be consumed. This is where config
+                                   // manager class's getParsedJson API will be
+                                   // consumed.
                                    return std::vector<std::string>{};
                                });
 
@@ -34,6 +40,22 @@ Manager::Manager(sdbusplus::asio::object_server& objectServer) :
 }
 
 Manager::~Manager() {}
+
+void Manager::initConfigMgr()
+{
+    try
+    {
+        // TODO: For now the config is hardcoded to the Huygens 4N JSON only.
+        // Revisit once multiple JSON files are involved, so the file to parse
+        // is selected based on the system configuration.
+        configMgr = std::make_shared<ConfigMgr>(HUYGENS_4N_CABLE_JSON_PATH);
+    }
+    catch (const std::exception& e)
+    {
+        // TODO: Log a PEL for the config failure.
+        lg2::error("Failed to initialise config manager: {ERROR}", "ERROR", e);
+    }
+}
 
 types::BmcPosition Manager::getBmcPosition()
 {

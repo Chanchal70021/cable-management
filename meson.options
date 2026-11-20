@@ -1,0 +1,6 @@
+option(
+    'HUYGENS_4N_CABLE_JSON_PATH',
+    type: 'string',
+    value: '/usr/share/cable-manager/huygens_4N.json',
+    description: 'Path to Huygens 4N configuration cable JSON file',
+)
